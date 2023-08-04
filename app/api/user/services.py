@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta
-
-import jwt
+from jose import jwt
 from app.api.user.authentication import generate_jwt_pair
 from app.api.user.schemas import GoogleSchema, Login, Signup
 from fastapi import HTTPException, Security, status
@@ -106,7 +105,7 @@ class UserService:
             data = {
                 "user": user_,
                 "access_token": access_token,
-                "refresh_token": refresh_token,
+                "refresh_token": refresh_token, 
             }
 
             # automatically subscribe users upon registration

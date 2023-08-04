@@ -21,3 +21,4 @@ class ExampleService:
         await self.session.refresh(example)
 
         return example
+    

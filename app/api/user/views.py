@@ -8,17 +8,32 @@ from app.api.user.schemas import (
     PasswordChange,
     GoogleAuthSchema,
     Email,
-    Update, RegistrationSuccess
+    Update, RegistrationSuccess, OTPVerify
 )
 from app.api.user.authentication import refreshJWT, verify_google_jwt
 from fastapi.security import OAuth2PasswordBearer
 from app.api.user.services import UserService
 from .auth_bearer import JWTBearer
-
+from pydantic import EmailStr
 router = APIRouter(tags=["Auth-Routes"], prefix="/accounts")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 auth_handler = UserService(session=AnSession)
 
+@router.get("/check/username")
+async def check_username_availability():
+
+    ...
+
+@router.get("/otp/send/{email}")
+async def get_otp(email: EmailStr):
+    ...
+
+@router.post("/otp/verify")
+async def verify_otp(otp_data: OTPVerify):
+
+    # return await 
+    ...
+    
 
 @router.post("/signup", status_code=status.HTTP_201_CREATED, response_model=RegistrationSuccess)
 async def create_user(user: Signup, session: AnSession):

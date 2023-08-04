@@ -92,3 +92,9 @@ class RegistrationSuccess(BaseModel):
     data: UserDetail
     message: str
     status: str
+
+
+class OTPVerify(BaseModel):
+    email: EmailStr
+    otp: constr(min_length=6)
+    
