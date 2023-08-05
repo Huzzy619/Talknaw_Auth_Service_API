@@ -6,7 +6,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     service_name: str = 'service_name'
-    database_url: PostgresDsn = 'postgresql+asyncpg://postgres:0509@localhost:5432/talknaw'
+    database_url: str =  "sqlite+aiosqlite:///./test.db"#PostgresDsn = 'postgresql+asyncpg://postgres:0509@localhost:5432/talknaw'
     port: int = 8000
     debug: bool = True
     secret_key: str = 'insecure-wuylv9a5lfgi*@vlk1ij75uvepq21s8k-cb549*&iuvgjui95s'

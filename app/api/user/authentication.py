@@ -155,7 +155,6 @@ def refreshJWT(token: str):
             config_credentials.get("REFRESH_SECRET_KEY"),
             algorithms=[config_credentials.get("ALGORITHM")],
         )
-        print(decoded_token)
         if decoded_token["exp"] >= time.time():
             # create new access token
             access_token_expires = timedelta(

@@ -1,12 +1,15 @@
 from datetime import datetime, timedelta
-from jose import jwt
-from app.api.user.authentication import generate_jwt_pair
-from app.api.user.schemas import GoogleSchema, Login, Signup
+
 from fastapi import HTTPException, Security, status
 from fastapi.security import APIKeyHeader, HTTPAuthorizationCredentials, HTTPBearer
+from jose import ExpiredSignatureError, JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
+from app.api.user.authentication import generate_jwt_pair
+from app.api.user.schemas import GoogleSchema, Login, User
+from app.core.config import settings
 from app.database.db import AnSession
 
 # from db.models.api import ApiKey
@@ -15,9 +18,9 @@ from app.database.models.user import User
 X_API_KEY = APIKeyHeader(name="X-API-KEY", auto_error=False)
 pwd_crypt = CryptContext(schemes=["bcrypt"], deprecated="auto")
 config_credentials = {
-    "SECRET_KEY": "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7",
+    "SECRET_KEY": settings.secret_key,
     "ALGORITHM": "HS256",
-    "ACCESS_TOKEN_EXPIRE_MINUTES": 10080,  # 7 days
+    "ACCESS_TOKEN_EXPIRE_MINUTES": timedelta(days=7).total_seconds(),
 }
 security = HTTPBearer()
 
@@ -29,7 +32,7 @@ authorized_exception = HTTPException(
 
 
 class UserService:
-    def __init__(self, session: AnSession):
+    def __init__(self, session: AnSession = None):
         self.session = session
 
     def get_password_hash(self, password):
@@ -59,146 +62,101 @@ class UserService:
                 algorithms=config_credentials["ALGORITHM"],
             )
             return payload["sub"]
-        except jwt.ExpiredSignatureError:
+        except ExpiredSignatureError:
             raise HTTPException(status_code=401, detail="Signature has expired")
-        except jwt.InvalidTokenError as e:
+        except (JWTError, AttributeError) as e:
             raise HTTPException(status_code=401, detail="Invalid token")
 
     def auth_wrapper(self, auth: HTTPAuthorizationCredentials = Security(security)):
-        return self.decode_token(auth.credentials)
+        return self.decode_token(token=auth.credentials)
 
-    # async def api_key_wrapper(
-    #     self,
-    #     session: AnSession,
-    #     x_api_key: str = Depends(X_API_KEY),
-    # ):
-    #     statement = select(ApiKey).where(ApiKey.api_key == x_api_key)
-    #     key = await session.execute(statement)
-    #     if key := key.scalars().first():
-    #         return key.user_id
-    #     return None
-
-    async def create_user(self, user: Signup) -> User:
-        
+    async def create_user(self, user: User) -> User:
         statement = select(User).where(User.email == user.email)
         user_details = await self.session.execute(statement)
-        user_details = user_details.scalars().first()
+        user_details = user_details.scalar_one_or_none()
         if user_details:
             raise HTTPException(
                 status_code=400, detail="email already exist, please try a new one"
             )
         else:
-            password = self.get_password_hash(user.password)
-            user.password = password
-            new_user = User(**user.model_dump())
-            self.session.add(new_user)
-            await self.session.commit()
-            await self.session.refresh(new_user)
+            try:
+                password = self.get_password_hash(user.password)
+                user.password = password
+                new_user = User(**user.model_dump())
+                self.session.add(new_user)
+                await self.session.commit()
+                await self.session.refresh(new_user)
+
+            except IntegrityError:
+                raise HTTPException(status_code=400, detail="Username is already taken")
 
             access_token, refresh_token = await generate_jwt_pair(
                 new_user.id, new_user.email
             )
 
-            user_ = new_user.__dict__
-            user_.pop("password")
-
             data = {
-                "user": user_,
+                "user_id": new_user.id,
                 "access_token": access_token,
-                "refresh_token": refresh_token, 
+                "refresh_token": refresh_token,
             }
 
             # automatically subscribe users upon registration
             # await SubscriberService(session=self.session).subscribe_email(user)
 
-            return self.success("Registration was successful", data)
+            return data
 
-    async def login_user(self, user: Login):
-        if user.email == "" or user.password == "":
-            raise HTTPException(
-                status_code=401, detail="email and password is required"
-            )
+    async def login_user(self, login_data: Login):
+        user = await self.authenticate_user(login_data.email, login_data.password)
 
-        user_details = await self.authenticate_user(user.email, user.password)
-        if not user_details:
+        if user is None:
             raise HTTPException(status_code=401, detail="Invalid Email or Password")
-        access_token, refresh_token = await generate_jwt_pair(
-            user_details.id, user_details.email
-        )
+        access_token, refresh_token = await generate_jwt_pair(user.id, user.email)
         data = {
-            "user": user_details,
+            "user_id": user.id,
             "access_token": access_token,
             "refresh_token": refresh_token,
         }
-        return self.success("Login was successful", data)
-
-    def success(self, message, data):
-        return {"status": "success", "message": message, "data": data}
+        return data
 
     async def authenticate_user(self, email, password):
-        try:
-            statement = select(User).where(User.email == email)
-            user = await self.session.execute(statement)
-            user = user.scalars().first()
-            if user and await self.verify_password(password, user.password):
-                return user
-        except:
-            return False
+        statement = select(User).where(User.email == email)
+        user = await self.session.execute(statement)
+        user = user.scalar_one_or_none()
+        if user and await self.verify_password(password, user.password):
+            return user
 
-    # async def get_api_key(self, user):
-    #     statement = select(ApiKey).where(ApiKey.user_id == user.id)
-    #     key = await self.session.execute(statement)
-    #     key = key.scalars().first()
-    #     if key is None:
-    #         key = ApiKey(user_id=user.id)
-    #         self.session.add(key)
-    #         await self.session.commit()
-    #         await self.session.refresh(key)
-    #     return key
-
-    # async def verify_api_key(self, key):
-    #     statement = select(ApiKey).where(ApiKey.api_key == key)
-    #     apiKey = await self.session.execute(statement)
-    #     apiKey = apiKey.scalars().first()
-    #     if not apiKey:
-    #         raise HTTPException(status_code=401, detail="Invalid Key")
-
-    #     userStatement = select(User).where(User.id == apiKey.user_id)
-    #     user = await self.session.execute(userStatement)
-    #     user = user.scalars().first()
-    #     if user:
-    #         data = {"api_key": apiKey.api_key}
-    #     return self.success("Api Key was verified successfully", data)
+        return None
 
     async def change_password(self, user_id, current_password, new_password):
-        if current_password == "" or new_password == "":
-            raise HTTPException(status_code=401, detail="password is required")
+        from uuid import UUID
 
-        statement = select(User).where(User.id == user_id)
-        user = await self.session.execute(statement)
-        user = user.scalars().first()
+        statement = select(User).where(User.id == UUID(user_id))
+        user = (await self.session.execute(statement)).scalar_one_or_none()
+
         if not user:
             raise HTTPException(status_code=401, detail="User does not exist")
 
+        # check if current password matches
         verify_password = pwd_crypt.verify(current_password, user.password)
         if not verify_password:
             raise HTTPException(
                 status_code=401, detail="Current password does not match"
             )
-
+        # check if new password matches old password
         check_password = pwd_crypt.verify(new_password, user.password)
-        if not check_password:
-            _password = self.get_password_hash(new_password)
-            user.password = _password
-            self.session.add(user)
-            await self.session.commit()
-            await self.session.refresh(user)
-            return self.success("Password was updated successfully", user)
-        else:
+        if check_password:
             raise HTTPException(
                 status_code=401,
                 detail="You have used this password before, try a new one",
             )
+
+        _password = self.get_password_hash(new_password)
+        user.password = _password
+        self.session.add(user)
+        await self.session.commit()
+        await self.session.refresh(user)
+
+        return {"detail": "Password was updated successfully"}
 
     async def get_logged_user(self, user_id):
         statement = select(User).where(User.id == user_id)
@@ -261,14 +219,24 @@ class UserService:
                 or
             None
         """
-        try:
-            statement = select(User).where(User.email == email)
-            user = await self.session.execute(statement)
-            found_user = user.scalars().first()
+        statement = select(User).where(User.email == email)
+        user = await self.session.execute(statement)
+        found_user = user.scalar_one_or_none()
+
+        if found_user:
             return found_user
-        except Exception as e:
-            print(e)
-            return None
+
+        raise HTTPException(detail="User not Found")
+    
+    async def find_by_username(self, username):
+        statement = select(User).where(User.username == username)
+        user = (await self.session.execute(statement)).scalar_one_or_none()
+
+        if user:
+            return user
+
+        return None
+
 
     async def email_verify(self, email):
         if email == "":
