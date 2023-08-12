@@ -1,21 +1,18 @@
 from datetime import datetime, timedelta
 
 from fastapi import HTTPException, Security, status
-from fastapi.security import APIKeyHeader, HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import ExpiredSignatureError, JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from app.api.user.authentication import generate_jwt_pair
-from app.api.user.schemas import GoogleSchema, Login, User
+from app.api.user.schemas import GoogleSchema, Login, PasswordChange, User
 from app.core.config import settings
 from app.database.db import AnSession
-
-# from db.models.api import ApiKey
 from app.database.models.user import User
 
-X_API_KEY = APIKeyHeader(name="X-API-KEY", auto_error=False)
 pwd_crypt = CryptContext(schemes=["bcrypt"], deprecated="auto")
 config_credentials = {
     "SECRET_KEY": settings.secret_key,
@@ -64,7 +61,7 @@ class UserService:
             return payload["sub"]
         except ExpiredSignatureError:
             raise HTTPException(status_code=401, detail="Signature has expired")
-        except (JWTError, AttributeError) as e:
+        except (JWTError, AttributeError):
             raise HTTPException(status_code=401, detail="Invalid token")
 
     def auth_wrapper(self, auth: HTTPAuthorizationCredentials = Security(security)):
@@ -158,15 +155,6 @@ class UserService:
 
         return {"detail": "Password was updated successfully"}
 
-    async def get_logged_user(self, user_id):
-        statement = select(User).where(User.id == user_id)
-        user = await self.session.execute(statement)
-        user = user.scalars().first()
-        if not user:
-            raise HTTPException(status_code=401, detail="User does not exist")
-
-        return self.success("User returned successfully", user)
-
     async def google_create_user(self, user: GoogleSchema):
         statement = select(User).where(User.email == user.email)
         user_details = await self.session.execute(statement)
@@ -226,8 +214,8 @@ class UserService:
         if found_user:
             return found_user
 
-        raise HTTPException(detail="User not Found")
-    
+        raise HTTPException(detail="User not Found", status_code=401)
+
     async def find_by_username(self, username):
         statement = select(User).where(User.username == username)
         user = (await self.session.execute(statement)).scalar_one_or_none()
@@ -237,71 +225,26 @@ class UserService:
 
         return None
 
+    async def forgot_password(self, email):
+        try:
+            await self.find_by_email(email=email)
+            # Contact the service to send Email
 
-    async def email_verify(self, email):
-        if email == "":
-            raise HTTPException(status_code=401, detail="email is required")
+        except HTTPException:
+            pass
 
-        statement = select(User).where(User.email == email)
-        user = await self.session.execute(statement)
-        user = user.scalars().first()
-        if not user:
-            raise HTTPException(status_code=401, detail="email does not exist")
+        return
 
-        return self.success("Proceed to reset password", user.email)
+    async def password_reset(self, email, password: PasswordChange):
+        user = self.find_by_email(email)
 
-    async def password_reset(self, user: Login):
-        if user.email == "" or user.password == "":
-            raise HTTPException(
-                status_code=401, detail="email and password is required"
-            )
-
-        statement = select(User).where(User.email == user.email)
-        user_details = await self.session.execute(statement)
-        user_details = user_details.scalars().first()
-        if not user_details:
-            raise HTTPException(status_code=401, detail="User does not exist")
-
-        check_password = pwd_crypt.verify(user.password, user_details.password)
-        if not check_password:
-            _password = self.get_password_hash(user.password)
-            user_details.password = _password
-            self.session.add(user_details)
-            await self.session.commit()
-            await self.session.refresh(user_details)
-            return self.success("Password was reset successfully", user_details)
-        else:
-            raise HTTPException(
-                status_code=401,
-                detail="You have used this password before, try a new one",
-            )
-
-    async def get_single_user(self, user_id):
-        if user_id == "":
-            raise HTTPException(status_code=401, detail="user_id is required")
-
-        statement = select(User).where(User.id == user_id)
-        user_details = await self.session.execute(statement)
-        user_details = user_details.scalars().first()
-
-        if not user_details:
-            raise HTTPException(status_code=401, detail="user does not exist")
-
-        return self.success("Returned user's details successfully", user_details)
-
-    async def update_user(self, user_id, first_name, last_name):
-        statement = select(User).where(User.id == user_id)
-        user = await self.session.execute(statement)
-        user = user.scalars().first()
-        if not user:
-            raise HTTPException(status_code=401, detail="User does not exist")
-
-        user.first_name = first_name
-        user.last_name = last_name
+        _password = self.get_password_hash(password.new_password)
+        user.password = _password
         self.session.add(user)
         await self.session.commit()
         await self.session.refresh(user)
-        return self.success("User Records updated successfully", user)
+
+        return {"detail": "Password was updated successfully"}
 
     async def find_by_id(self, id):
         """

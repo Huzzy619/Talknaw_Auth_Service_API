@@ -35,7 +35,7 @@ class GoogleSchema(BaseModel):
 
 
 class PasswordChange(BaseModel):
-    current_password: str
+    current_password: str = None
     new_password: str
 
 
