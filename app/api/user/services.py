@@ -125,7 +125,6 @@ class UserService:
     async def authenticate_user(self, email, password):
         statement = select(UserDb).where(UserDb.email == email)
         user = await self.session.execute(statement)
-        print("i got here")
         user = user.scalar_one_or_none()
         if user and await self.verify_password(password, user.password):
             return user
