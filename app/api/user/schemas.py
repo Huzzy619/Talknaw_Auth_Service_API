@@ -10,11 +10,12 @@ class User(BaseModel):
     name: constr(min_length=3)
     email: EmailStr
     password: constr(min_length=8)
+    picture: Optional[str] = None
 
 class UserProfile(BaseModel):
     user_id: UUID
 
-class UserTokenProfile(UserProfile):
+class UserTokenProfile(BaseModel):
     access_token: str
     refresh_token: str
 

@@ -1,16 +1,21 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, status
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, status
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import EmailStr
 
 from app.api.user.authentication import refreshJWT
 from app.api.user.otp import OTPGenerator
-from app.api.user.schemas import OTPVerify  # GoogleAuthSchema,
-from app.api.user.schemas import Login, PasswordChange, User, UserTokenProfile
+from app.api.user.schemas import (
+    Login,
+    OTPVerify,  # GoogleAuthSchema,
+    PasswordChange,
+    User,
+    UserTokenProfile,
+)
 from app.api.user.services import UserService
+from app.api.user.tasks import create_profile
 from app.database.db import AnSession
-
 
 router = APIRouter(tags=["Auth-Routes"], prefix="/accounts")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -54,9 +59,16 @@ async def verify_otp(otp_data: OTPVerify, session: AnSession):
 @router.post(
     "/signup", status_code=status.HTTP_201_CREATED, response_model=UserTokenProfile
 )
-async def create_user(user: User, session: AnSession):
+async def create_user(
+    user: User, session: AnSession, background_tasks: BackgroundTasks
+):
     user_service = UserService(session=session)
-    return await user_service.create_user(user)
+
+    result = await user_service.create_user(user)
+
+    background_tasks.add_task(create_profile, result)
+
+    return result
 
 
 @router.post("/login", response_model=UserTokenProfile)

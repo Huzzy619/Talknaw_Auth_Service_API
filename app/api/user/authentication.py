@@ -53,7 +53,7 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
     else:
         expire = datetime.utcnow() + timedelta(minutes=15)
     to_encode.update({"exp": expire})
-    to_encode.update({"sub": str(data["id"])})
+    to_encode.update({"sub": str(data["user_id"])})
     encoded_jwt = jwt.encode(
         to_encode,
         config_credentials["SECRET_KEY"],
@@ -69,7 +69,7 @@ def create_refresh_token(data: dict, expires_delta: timedelta = None):
     else:
         expire = datetime.utcnow() + timedelta(minutes=43200)
     to_encode.update({"exp": expire})
-    to_encode.update({"sub": str(data["id"])})
+    to_encode.update({"sub": str(data["user_id"])})
     encoded_jwt = jwt.encode(
         to_encode,
         config_credentials["REFRESH_SECRET_KEY"],
@@ -79,7 +79,7 @@ def create_refresh_token(data: dict, expires_delta: timedelta = None):
 
 
 async def generate_jwt_pair(id: str, email: str):
-    data = {"id": f"{id}", "email": email}
+    data = {"user_id": f"{id}", "email": email}
     access_token_expires = timedelta(
         minutes=config_credentials["ACCESS_TOKEN_EXPIRE_MINUTES"]
     )

@@ -11,7 +11,7 @@ from app.api.user.authentication import generate_jwt_pair
 from app.api.user.schemas import GoogleSchema, Login, PasswordChange, User
 from app.core.config import settings
 from app.database.db import AnSession
-from app.database.models.user import User
+from app.database.models.user import User as UserDb
 
 pwd_crypt = CryptContext(schemes=["bcrypt"], deprecated="auto")
 config_credentials = {
@@ -68,7 +68,7 @@ class UserService:
         return self.decode_token(token=auth.credentials)
 
     async def create_user(self, user: User) -> User:
-        statement = select(User).where(User.email == user.email)
+        statement = select(UserDb).where(UserDb.email == user.email)
         user_details = await self.session.execute(statement)
         user_details = user_details.scalar_one_or_none()
         if user_details:
@@ -79,7 +79,9 @@ class UserService:
             try:
                 password = self.get_password_hash(user.password)
                 user.password = password
-                new_user = User(**user.model_dump())
+                user_data = user.model_dump()
+                user_data.pop("picture", None)
+                new_user = UserDb(**user_data)
                 self.session.add(new_user)
                 await self.session.commit()
                 await self.session.refresh(new_user)
@@ -88,20 +90,25 @@ class UserService:
                 raise HTTPException(status_code=400, detail="Username is already taken")
 
             access_token, refresh_token = await generate_jwt_pair(
-                new_user.id, new_user.email
-            )
+                    new_user.id, new_user.email
+                )
 
             data = {
-                "user_id": new_user.id,
-                "access_token": access_token,
-                "refresh_token": refresh_token,
-            }
-
+                    "user_id": new_user.id,
+                    "access_token": access_token,
+                    "refresh_token": refresh_token,
+                    **user.model_dump()
+                }
             # automatically subscribe users upon registration
             # await SubscriberService(session=self.session).subscribe_email(user)
 
             return data
+    
 
+            
+
+
+        
     async def login_user(self, login_data: Login):
         user = await self.authenticate_user(login_data.email, login_data.password)
 
