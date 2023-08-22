@@ -123,8 +123,9 @@ class UserService:
         return data
 
     async def authenticate_user(self, email, password):
-        statement = select(User).where(User.email == email)
+        statement = select(UserDb).where(UserDb.email == email)
         user = await self.session.execute(statement)
+        print("i got here")
         user = user.scalar_one_or_none()
         if user and await self.verify_password(password, user.password):
             return user
@@ -134,7 +135,7 @@ class UserService:
     async def change_password(self, user_id, current_password, new_password):
         from uuid import UUID
 
-        statement = select(User).where(User.id == UUID(user_id))
+        statement = select(UserDb).where(UserDb.id == UUID(user_id))
         user = (await self.session.execute(statement)).scalar_one_or_none()
 
         if not user:
@@ -163,7 +164,7 @@ class UserService:
         return {"detail": "Password was updated successfully"}
 
     async def google_create_user(self, user: GoogleSchema):
-        statement = select(User).where(User.email == user.email)
+        statement = select(UserDb).where(UserDb.email == user.email)
         user_details = await self.session.execute(statement)
         user_details = user_details.scalars().first()
         if user_details:
@@ -214,7 +215,7 @@ class UserService:
                 or
             None
         """
-        statement = select(User).where(User.email == email)
+        statement = select(UserDb).where(UserDb.email == email)
         user = await self.session.execute(statement)
         found_user = user.scalar_one_or_none()
 
@@ -224,7 +225,7 @@ class UserService:
         raise HTTPException(detail="User not Found", status_code=401)
 
     async def find_by_username(self, username):
-        statement = select(User).where(User.username == username)
+        statement = select(UserDb).where(UserDb.username == username)
         user = (await self.session.execute(statement)).scalar_one_or_none()
 
         if user:
@@ -265,7 +266,7 @@ class UserService:
                 or
             None
         """
-        statement = select(User).where(User.id == id)
+        statement = select(UserDb).where(UserDb.id == id)
         try:
             user = await self.session.execute(statement)
             found_user = user.scalars().first()
