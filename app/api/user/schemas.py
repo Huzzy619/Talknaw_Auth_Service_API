@@ -2,13 +2,21 @@ from datetime import datetime
 from typing import Optional, List
 from uuid import UUID
 
-from pydantic import BaseModel, constr, conint, conlist, EmailStr
-
+from pydantic import BaseModel, constr#, EmailStr#, conint, conlist, 
+from aredis_om import JsonModel
+from pydantic import EmailStr
 
 class User(BaseModel):
     username: constr(min_length=3)
     name: constr(min_length=3)
-    email: EmailStr
+    email: str #EmailStr
+    password: constr(min_length=8)
+    picture: Optional[str] = None
+
+class User2(JsonModel):
+    username: constr(min_length=3)
+    name: constr(min_length=3)
+    email: str
     password: constr(min_length=8)
     picture: Optional[str] = None
 

@@ -12,8 +12,13 @@ WORKDIR /app
 
 COPY requirements.txt requirements.txt
 
-RUN pip3 install -r requirements.txt
+RUN pip3 install --no-cache-dir --upgrade -r requirements.txt
+
+EXPOSE 8001
 
 COPY . .
 
 
+# CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "80"]
+
+CMD ["gunicorn", "main:app", "--workers", "4", "--worker-class", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:80"]

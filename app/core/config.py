@@ -5,7 +5,7 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    service_name: str = 'service_name'
+    service_name: str = 'Authentication Service'
     database_url: str =  "sqlite+aiosqlite:///./test.db"#PostgresDsn = 'postgresql+asyncpg://postgres:0509@localhost:5432/talknaw'
     port: int = 8001
     debug: bool = True

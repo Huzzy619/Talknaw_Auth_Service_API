@@ -4,6 +4,19 @@ from pydantic import BaseModel
 
 from app.api.example.views import router as example_router
 from app.api.user.views import router as user_router
+from app.api.user.schemas import User2
+
+import redis
+
+
+
+# from redis_om import get_redis_connection
+from aredis_om import get_redis_connection
+# This Redis instance is tuned for durability.
+REDIS_DATA_URL = "redis://localhost:6379"
+
+# This Redis instance is tuned for cache performance.
+REDIS_CACHE_URL = "redis://localhost:6381"
 
 # from
 
@@ -29,6 +42,15 @@ async def health_status_check() -> StatusCheck:
 async def initialize():
     ...
 
+async def initialize_redis():
+    # r = redis.asyncio.from_url(REDIS_CACHE_URL, encoding="utf8",
+    #                       decode_responses=True)
+    # FastAPICache.init(RedisBackend(r), prefix="fastapi-cache")
+
+    # You can set the Redis OM URL using the REDIS_OM_URL environment
+    # variable, or by manually creating the connection using your model's
+    # Meta object.
+    User2.Meta.database = get_redis_connection(url=REDIS_DATA_URL, decode_responses=True)
 
 def get_app():
     api = FastAPI(
@@ -48,5 +70,8 @@ def get_app():
     @api.on_event("startup")
     async def startup_event():
         await initialize()
+        print("connecting........................")
+        await initialize_redis()
+        print("connected")
 
     return api
