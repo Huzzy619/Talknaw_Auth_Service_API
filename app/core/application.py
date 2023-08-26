@@ -60,7 +60,8 @@ def get_app():
             "for all other services of the Talknaw Project\t"
             "As well as perform all necessary authentation services"
         ),
-        version="0.0.1",
+        version="0.0.1"
+        
     )
 
     # api.include_router(example_router)
@@ -71,7 +72,7 @@ def get_app():
     async def startup_event():
         await initialize()
         print("connecting........................")
-        await initialize_redis()
+        # await initialize_redis()
         print("connected")
 
     return api
