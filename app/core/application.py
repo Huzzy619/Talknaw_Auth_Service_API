@@ -1,17 +1,18 @@
+import redis
+import sentry_sdk
+
+# from redis_om import get_redis_connection
+from aredis_om import get_redis_connection
 from fastapi import APIRouter, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
 from app.api.example.views import router as example_router
-from app.api.user.views import router as user_router
 from app.api.user.schemas import User2
-from fastapi.middleware.cors import CORSMiddleware
-import redis
+from app.api.user.views import router as user_router
 from app.core.config import settings
 
-
-# from redis_om import get_redis_connection
-from aredis_om import get_redis_connection
 # This Redis instance is tuned for durability.
 REDIS_DATA_URL = "redis://localhost:6379"
 
@@ -35,12 +36,12 @@ async def redirect_to_docs():
 
 @home_router.get("/status")
 async def health_status_check() -> StatusCheck:
-    
     return {"status": True, "detail": "API is up and running "}
 
 
 async def initialize():
     ...
+
 
 async def initialize_redis():
     # r = redis.asyncio.from_url(REDIS_CACHE_URL, encoding="utf8",
@@ -50,9 +51,20 @@ async def initialize_redis():
     # You can set the Redis OM URL using the REDIS_OM_URL environment
     # variable, or by manually creating the connection using your model's
     # Meta object.
-    User2.Meta.database = get_redis_connection(url=REDIS_DATA_URL, decode_responses=True)
+    User2.Meta.database = get_redis_connection(
+        url=REDIS_DATA_URL, decode_responses=True
+    )
+
 
 def get_app():
+    if not settings.debug:
+        sentry_sdk.init(
+            dsn=settings.sentry_logger_url,
+            # Set traces_sample_rate to 1.0 to capture 100%
+            # of transactions for performance monitoring.
+            # We recommend adjusting this value in production,
+            traces_sample_rate=1.0,
+        )
     api = FastAPI(
         title="Talknaw Authentication Routes",
         description=(
@@ -60,8 +72,7 @@ def get_app():
             "for all other services of the Talknaw Project\t"
             "As well as perform all necessary authentation services"
         ),
-        version="0.0.1"
-        
+        version="0.0.1",
     )
 
     # api.include_router(example_router)
