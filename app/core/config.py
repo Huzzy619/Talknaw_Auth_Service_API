@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     host: str = "localhost"
     workers_count: int = 4 
     social_base_url:  AnyHttpUrl = "http://127.0.0.1:8000"  
+    allowed_origins: list = ["*"]
 
     class Config:
         env_prefix = ""

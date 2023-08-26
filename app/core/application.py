@@ -5,9 +5,9 @@ from pydantic import BaseModel
 from app.api.example.views import router as example_router
 from app.api.user.views import router as user_router
 from app.api.user.schemas import User2
-
+from fastapi.middleware.cors import CORSMiddleware
 import redis
-
+from app.core.config import settings
 
 
 # from redis_om import get_redis_connection
@@ -67,6 +67,14 @@ def get_app():
     # api.include_router(example_router)
     api.include_router(user_router)
     api.include_router(home_router)
+
+    api.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.allowed_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     @api.on_event("startup")
     async def startup_event():
