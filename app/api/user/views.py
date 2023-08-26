@@ -64,9 +64,9 @@ async def create_user(
 
     return result
 
-@router.post(
-    "/signup2", status_code=status.HTTP_201_CREATED
-)
+# @router.post(
+#     "/signup2", status_code=status.HTTP_201_CREATED
+# )
 async def create_user2(
     user: User, session: AnSession, background_tasks: BackgroundTasks
 ):
