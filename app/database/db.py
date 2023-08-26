@@ -12,12 +12,21 @@ from sqlalchemy.orm import DeclarativeBase
 
 from app.core.config import settings
 
-async_engine = create_async_engine(
-    settings.database_url.__str__(),
-    echo=settings.db_echo,
-    future=True,
-    connect_args={"check_same_thread": False},
-)
+if settings.debug:
+    async_engine = create_async_engine(
+        "sqlite+aiosqlite:///./test.db",
+        echo=settings.db_echo,
+        future=True,
+        connect_args={"check_same_thread": False},
+    )
+
+else:
+    async_engine = create_async_engine(
+        settings.database_url.__str__(),
+        echo=settings.db_echo,
+        future=True,
+    )
+
 
 
 async def db_session() -> AsyncSession:
