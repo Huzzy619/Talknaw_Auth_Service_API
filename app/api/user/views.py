@@ -6,7 +6,14 @@ from pydantic import EmailStr
 
 from app.api.user.authentication import refreshJWT
 from app.api.user.otp import OTPGenerator
-from app.api.user.schemas import OTPVerify, Login, PasswordChange, User, UserTokenProfile, User2
+from app.api.user.schemas import (
+    OTPVerify,
+    Login,
+    PasswordChange,
+    User,
+    UserTokenProfile,
+    User2,
+)
 from app.api.user.services import UserService
 from app.api.user.tasks import create_profile
 from app.database.db import AnSession
@@ -64,6 +71,7 @@ async def create_user(
 
     return result
 
+
 # @router.post(
 #     "/signup2", status_code=status.HTTP_201_CREATED
 # )
@@ -75,13 +83,12 @@ async def create_user2(
     # result = await user_service.create_user(user)
 
     # background_tasks.add_task(create_profile, result)
-    user2  =User2(**user.model_dump())
+    user2 = User2(**user.model_dump())
     await user2.save()
 
     data = await User2.all_pks()
     print(data)
-    return {"result": [item for item in data ]}
-
+    return {"result": [item for item in data]}
 
 
 @router.post("/login", response_model=UserTokenProfile)

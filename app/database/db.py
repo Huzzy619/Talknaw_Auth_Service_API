@@ -28,7 +28,6 @@ else:
     )
 
 
-
 async def db_session() -> AsyncSession:
     async_session = async_sessionmaker(
         bind=async_engine,

@@ -2,7 +2,7 @@ from fastapi.testclient import TestClient
 
 
 def test_root(client: TestClient):
-    res = client.get('/')
+    res = client.get("/")
 
     assert res.status_code == 200
-    assert res.json()['hello'] == 'world'
+    assert res.json()["hello"] == "world"

@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 
 import httpx
 from jose import jwt
+from jose.exceptions import JWTError
 from fastapi import HTTPException, status
 from google.auth import jwt as g_jwt
 from passlib.context import CryptContext
@@ -37,9 +38,7 @@ async def verify_password(plain_password, hashed_password):
     return pwd_crypt.verify(plain_password, hashed_password)
 
 
-async def authenticate_user(
-    email, password, session: AnSession
-):
+async def authenticate_user(email, password, session: AnSession):
     user = await session.execute(select(User).where(email=email)).one()
     if user and await verify_password(password, user.password):
         return user
@@ -91,35 +90,33 @@ async def generate_jwt_pair(id: str, email: str):
     return (access_token, refresh_token)
 
 
-
-        
 async def verify_google_jwt(jwt_token):
     """
-        This functions verifies a Google JWT Token and gets the user information for the user
-        the token belongs to.
+    This functions verifies a Google JWT Token and gets the user information for the user
+    the token belongs to.
 
-        Args:
-        jwt_token: str
+    Args:
+    jwt_token: str
 
-        Return:
-        {
-            "nbf":  161803398874,
-            "aud": "314159265-pi.apps.googleusercontent.com", // Your server's client ID
-            "sub": "3141592653589793238", // The unique ID of the user's Google Account
-            "hd": "gmail.com", // If present, the host domain of the user's GSuite email address
-            "email": "elisa.g.beckett@gmail.com", // The user's email address
-            "email_verified": true, // true, if Google has verified the email address
-            "azp": "314159265-pi.apps.googleusercontent.com",
-            "name": "Elisa Beckett",
-                                        // If present, a URL to user's profile picture
-            "picture": "https://lh3.googleusercontent.com/a-/e2718281828459045235360uler",
-            "given_name": "Elisa",
-            "family_name": "Beckett",
-            "iat": 1596474000, // Unix timestamp of the assertion's creation time
-            "exp": 1596477600, // Unix timestamp of the assertion's expiration time
-            "jti": "abc161803398874def"
-        }
-        """
+    Return:
+    {
+        "nbf":  161803398874,
+        "aud": "314159265-pi.apps.googleusercontent.com", // Your server's client ID
+        "sub": "3141592653589793238", // The unique ID of the user's Google Account
+        "hd": "gmail.com", // If present, the host domain of the user's GSuite email address
+        "email": "elisa.g.beckett@gmail.com", // The user's email address
+        "email_verified": true, // true, if Google has verified the email address
+        "azp": "314159265-pi.apps.googleusercontent.com",
+        "name": "Elisa Beckett",
+                                    // If present, a URL to user's profile picture
+        "picture": "https://lh3.googleusercontent.com/a-/e2718281828459045235360uler",
+        "given_name": "Elisa",
+        "family_name": "Beckett",
+        "iat": 1596474000, // Unix timestamp of the assertion's creation time
+        "exp": 1596477600, // Unix timestamp of the assertion's expiration time
+        "jti": "abc161803398874def"
+    }
+    """
     cert_url = "https://www.googleapis.com/oauth2/v1/certs"
     async with httpx.AsyncClient() as client:
         response = await client.get(cert_url)
@@ -144,7 +141,7 @@ def decodeJWT(token: str, refresh: bool = False) -> dict:
                 algorithms=[config_credentials.get("ALGORITHM")],
             )
             return decoded_token if decoded_token["exp"] >= time.time() else None
-    except:
+    except JWTError:
         return {}
 
 
@@ -166,5 +163,5 @@ def refreshJWT(token: str):
             return access_token
         else:
             return None
-    except:
+    except JWTError:
         return None

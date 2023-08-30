@@ -1,17 +1,18 @@
-from datetime import datetime
-from typing import Optional, List
+from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, constr#, EmailStr#, conint, conlist, 
+from pydantic import BaseModel, constr  # , EmailStr#, conint, conlist,
 from aredis_om import JsonModel
 from pydantic import EmailStr
+
 
 class User(BaseModel):
     username: constr(min_length=3)
     name: constr(min_length=3)
-    email: str #EmailStr
+    email: str  # EmailStr
     password: constr(min_length=8)
     picture: Optional[str] = None
+
 
 class User2(JsonModel):
     username: constr(min_length=3)
@@ -20,15 +21,19 @@ class User2(JsonModel):
     password: constr(min_length=8)
     picture: Optional[str] = None
 
+
 class UserProfile(BaseModel):
     user_id: UUID
+
 
 class UserTokenProfile(BaseModel):
     access_token: str
     refresh_token: str
 
+
 class UserUpdate(User):
-    ...    
+    ...
+
 
 class Login(BaseModel):
     email: EmailStr
@@ -51,14 +56,12 @@ class PasswordChange(BaseModel):
 class GoogleAuthSchema(BaseModel):
     jwt_token: str
 
+
 # class GoogleAuthResponse(BaseModel):
 #     user: UserSchema
 #     access_token: str
 
 
-
-
 class OTPVerify(BaseModel):
     email: EmailStr
     otp: constr(min_length=6)
-    

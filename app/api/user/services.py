@@ -90,25 +90,20 @@ class UserService:
                 raise HTTPException(status_code=400, detail="Username is already taken")
 
             access_token, refresh_token = await generate_jwt_pair(
-                    new_user.id, new_user.email
-                )
+                new_user.id, new_user.email
+            )
 
             data = {
-                    "user_id": new_user.id,
-                    "access_token": access_token,
-                    "refresh_token": refresh_token,
-                    **user.model_dump()
-                }
+                "user_id": new_user.id,
+                "access_token": access_token,
+                "refresh_token": refresh_token,
+                **user.model_dump(),
+            }
             # automatically subscribe users upon registration
             # await SubscriberService(session=self.session).subscribe_email(user)
 
             return data
-    
 
-            
-
-
-        
     async def login_user(self, login_data: Login):
         user = await self.authenticate_user(login_data.email, login_data.password)
 

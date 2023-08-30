@@ -1,5 +1,6 @@
-from fastapi import Request, HTTPException
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import HTTPException, Request
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from jose.exceptions import JWTError
 
 from .authentication import decodeJWT
 
@@ -34,7 +35,7 @@ class JWTBearer(HTTPBearer):
                 payload = decodeJWT(jwtoken, refresh=True)
             else:
                 payload = decodeJWT(jwtoken)
-        except:
+        except JWTError:
             payload = None
         if payload:
             isTokenValid = True

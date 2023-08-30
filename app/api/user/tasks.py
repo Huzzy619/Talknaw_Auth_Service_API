@@ -1,6 +1,7 @@
 import httpx
 from app.core.config import settings
 
+
 async def create_profile(new_user: dict):
     user_data = {k: str(v) for k, v in new_user.items()}
 

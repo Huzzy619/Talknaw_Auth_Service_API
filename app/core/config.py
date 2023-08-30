@@ -1,28 +1,27 @@
 from pathlib import Path
+from typing import Union
 
-from pydantic import DirectoryPath, PostgresDsn, AnyHttpUrl
+from pydantic import AnyHttpUrl, DirectoryPath, PostgresDsn
 from pydantic_settings import BaseSettings
+
+from app.utils.type_extra import SQLiteDsn
 
 
 class Settings(BaseSettings):
-    service_name: str = 'Authentication Service'
-    database_url: str = "sqlite+aiosqlite:///./test.db"
+    service_name: str
+    database_url: Union[PostgresDsn, SQLiteDsn]
     port: int = 8001
     debug: bool = True
-    secret_key: str = 'insecure-wuylv9a5lfgi*@vlk1ij75uvepq21s8k-cb549*&iuvgjui95s'
+    secret_key: str
     base_dir: DirectoryPath = Path(__file__).resolve().parent.parent.parent
     reload: bool = True
     factory: bool = True
     db_echo: bool = False
     host: str = "localhost"
-    workers_count: int = 4 
-    social_base_url:  AnyHttpUrl = "http://127.0.0.1:8000"  
+    workers_count: int = 4
+    social_base_url: AnyHttpUrl
     allowed_origins: list = ["*"]
-    sentry_logger_url: AnyHttpUrl = None
+    sentry_logger_url: AnyHttpUrl
 
-    class Config:
-        env_prefix = ""
-        env_file = ".env"
-        env_file_encoding = "utf-8"
 
-settings = Settings()
+settings = Settings(_env_file=".env", _env_file_encoding="utf-8")
