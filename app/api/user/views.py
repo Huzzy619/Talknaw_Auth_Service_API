@@ -7,12 +7,14 @@ from pydantic import EmailStr
 from app.api.user.authentication import refreshJWT
 from app.api.user.otp import OTPGenerator
 from app.api.user.schemas import (
-    OTPVerify,
     Login,
+    MessageProfile,
+    OTPVerify,
     PasswordChange,
+    ResetPassword,
     User,
-    UserTokenProfile,
     User2,
+    UserTokenProfile,
 )
 from app.api.user.services import UserService
 from app.api.user.tasks import create_profile
@@ -23,17 +25,13 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 auth_handler = UserService(session=AnSession)
 
 
-@router.get("/check/username/{username}")
+@router.get("/check/username/{username}", response_model=MessageProfile)
 async def check_username_availability(username: str, session: AnSession):
     user_service = UserService(session=session)
-
-    if await user_service.find_by_username(username=username):
-        return {"detail": "unavailable", "status": False}
-
-    return {"detail": "available", "status": True}
+    return await user_service.find_by_username(username=username)
 
 
-@router.get("/otp/send/{email}")
+@router.get("/otp/send/{email}", response_model=MessageProfile)
 async def get_otp(email: EmailStr, session: AnSession):
     user_service = UserService(session=session)
 
@@ -42,19 +40,19 @@ async def get_otp(email: EmailStr, session: AnSession):
 
     otp = await otp_gen.get_otp()
 
-    return {"code": otp}
+    return {"detail": "OTP has been sent to your email", "status": True}
 
 
-@router.post("/otp/verify")
+@router.post("/otp/verify", response_model=MessageProfile)
 async def verify_otp(otp_data: OTPVerify, session: AnSession):
     user_service = UserService(session=session)
     user = await user_service.find_by_email(email=otp_data.email)
 
     otp_gen = OTPGenerator(user_id=user.id, session=session)
 
-    status = await otp_gen.check_otp(otp=otp_data.otp)
+    message, status = await otp_gen.check_otp(otp=otp_data.otp)
 
-    return {"status": status}
+    return {"detail": message, "status": status}
 
 
 @router.post(
@@ -111,7 +109,7 @@ async def refresh_token(
     }
 
 
-@router.post("/change_password", status_code=201)
+@router.patch("/change_password", response_model=MessageProfile)
 async def change_user_password(
     form_data: PasswordChange,
     session: AnSession,
@@ -121,15 +119,13 @@ async def change_user_password(
     return await user_service.change_password(user_id=user_id, **form_data.model_dump())
 
 
-@router.get("/forgot/password/{email}")
+@router.get("/forgot_password/{email}", response_model=MessageProfile)
 async def verify_email(email: EmailStr, session: AnSession):
     user_service = UserService(session=session)
-    await user_service.forgot_password(email)
-    return {"detail": "email has been sent to provided address"}
+    return await user_service.forgot_password(email)
 
 
-@router.post("/reset_password/{email}")
-async def reset_password(email: EmailStr, password: PasswordChange, session: AnSession):
+@router.post("/reset_password/{email}", response_model=MessageProfile)
+async def reset_password(email: EmailStr, password: ResetPassword, session: AnSession):
     user_service = UserService(session=session)
-    response = await user_service.password_reset(email, password)
-    return response
+    return await user_service.password_reset(email, password)

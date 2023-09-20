@@ -52,11 +52,11 @@ class OTPGenerator:
         verify_status = self.hotp.verify(otp, value)
 
         if verify_status and time_check:
-            return "passed"
+            return "passed", True
         elif verify_status and not time_check:
-            return "expired"
+            return "expired", False
         else:
-            return "invalid"
+            return "invalid", False
 
     async def get_otp_obj(self, user_id, **kwargs):
         stmt = select(OTP).where(OTP.user_id == user_id)

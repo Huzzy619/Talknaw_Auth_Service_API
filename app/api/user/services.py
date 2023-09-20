@@ -155,7 +155,7 @@ class UserService:
         await self.session.commit()
         await self.session.refresh(user)
 
-        return {"detail": "Password was updated successfully"}
+        return {"detail": "Password was updated successfully", "status": True}
 
     async def google_create_user(self, user: GoogleSchema):
         statement = select(UserDb).where(UserDb.email == user.email)
@@ -223,9 +223,9 @@ class UserService:
         user = (await self.session.execute(statement)).scalar_one_or_none()
 
         if user:
-            return user
+            return {"detail": "unavailable", "status": False}
 
-        return None
+        return {"detail": "available", "status": True}
 
     async def forgot_password(self, email):
         try:
@@ -235,7 +235,10 @@ class UserService:
         except HTTPException:
             pass
 
-        return
+        return {
+            "detail": "Instructions to reset password has been sent to provided address",
+            "status": True,
+        }
 
     async def password_reset(self, email, password: PasswordChange):
         user = self.find_by_email(email)
@@ -246,7 +249,7 @@ class UserService:
         await self.session.commit()
         await self.session.refresh(user)
 
-        return {"detail": "Password was updated successfully"}
+        return {"detail": "Password was updated successfully", "status": True}
 
     async def find_by_id(self, id):
         """

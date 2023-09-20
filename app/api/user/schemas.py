@@ -1,17 +1,32 @@
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, constr  # , EmailStr#, conint, conlist,
 from aredis_om import JsonModel
-from pydantic import EmailStr
+from pydantic import (  # , EmailStr#, conint, conlist,
+    BaseModel,
+    EmailStr,
+    constr,
+    validator,
+    root_validator
+)
+
+from app.utils.helper import create_custom_username
 
 
 class User(BaseModel):
-    username: constr(min_length=3)
+    username: Optional[constr(min_length=3)]
     name: constr(min_length=3)
-    email: str  # EmailStr
+    email: EmailStr
     password: constr(min_length=8)
     picture: Optional[str] = None
+
+    @root_validator(pre=True)
+    def validate_username(cls, values, **kwargs):
+        if values.get("username") is None:
+            values["username"] = create_custom_username(values.get("name"))
+
+        return values
+    
 
 
 class User2(JsonModel):
@@ -48,9 +63,12 @@ class GoogleSchema(BaseModel):
     id_token: str
 
 
-class PasswordChange(BaseModel):
-    current_password: str = None
+class ResetPassword(BaseModel):
     new_password: str
+
+
+class PasswordChange(ResetPassword):
+    current_password: str
 
 
 class GoogleAuthSchema(BaseModel):
@@ -65,3 +83,7 @@ class GoogleAuthSchema(BaseModel):
 class OTPVerify(BaseModel):
     email: EmailStr
     otp: constr(min_length=6)
+
+class MessageProfile(BaseModel):
+    detail: str
+    status: bool
