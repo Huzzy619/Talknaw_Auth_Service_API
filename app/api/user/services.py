@@ -1,14 +1,20 @@
 from datetime import datetime, timedelta
+from uuid import UUID
 
 from fastapi import HTTPException, Security, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import ExpiredSignatureError, JWTError, jwt
 from passlib.context import CryptContext
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 
 from app.api.user.authentication import generate_jwt_pair
-from app.api.user.schemas import GoogleSchema, Login, PasswordChange, User
+from app.api.user.schemas import (
+    GoogleSchema,
+    Login,
+    ResetPassword,
+    User,
+)
 from app.core.config import settings
 from app.database.db import AnSession
 from app.database.models.user import User as UserDb
@@ -216,7 +222,7 @@ class UserService:
         if found_user:
             return found_user
 
-        raise HTTPException(detail="User not Found", status_code=401)
+        raise HTTPException(detail="User not Found", status_code=404)
 
     async def find_by_username(self, username):
         statement = select(UserDb).where(UserDb.username == username)
@@ -227,12 +233,36 @@ class UserService:
 
         return {"detail": "available", "status": True}
 
+    async def update_username(self, user_id, username):
+        if not await self.find_by_id(id=user_id):
+            raise HTTPException(status_code=404, detail="User not Found")
+
+        result = await self.find_by_username(username=username)
+        if not result["status"]:
+            raise HTTPException(detail="Username already taken", status_code=400)
+
+        stmt = (
+            update(UserDb)
+            .where(UserDb.id == UUID(user_id))
+            .values(username=username)
+            .returning(UserDb)
+        )
+        await self.session.execute(stmt)
+
+        yield {"user_id": user_id, "username": username}
+
+        await self.session.commit()
+
     async def forgot_password(self, email):
         try:
             await self.find_by_email(email=email)
             # Contact the service to send Email
+            stmt = update(UserDb).where(UserDb.email == email).values(password=None)
+            await self.session.execute(stmt)
+            await self.session.commit()
 
         except HTTPException:
+            print("EMAIL NOT SENT")
             pass
 
         return {
@@ -240,7 +270,7 @@ class UserService:
             "status": True,
         }
 
-    async def password_reset(self, email, password: PasswordChange):
+    async def password_reset(self, email, password: ResetPassword):
         user = self.find_by_email(email)
 
         _password = self.get_password_hash(password.new_password)
@@ -263,7 +293,7 @@ class UserService:
                 or
             None
         """
-        statement = select(UserDb).where(UserDb.id == id)
+        statement = select(UserDb).where(UserDb.id == UUID(id))
         try:
             user = await self.session.execute(statement)
             found_user = user.scalars().first()

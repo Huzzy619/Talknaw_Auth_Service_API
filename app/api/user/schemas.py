@@ -6,8 +6,8 @@ from pydantic import (  # , EmailStr#, conint, conlist,
     BaseModel,
     EmailStr,
     constr,
+    root_validator,
     validator,
-    root_validator
 )
 
 from app.utils.helper import create_custom_username
@@ -26,7 +26,6 @@ class User(BaseModel):
             values["username"] = create_custom_username(values.get("name"))
 
         return values
-    
 
 
 class User2(JsonModel):
@@ -64,6 +63,7 @@ class GoogleSchema(BaseModel):
 
 
 class ResetPassword(BaseModel):
+    token: str
     new_password: str
 
 
@@ -84,6 +84,11 @@ class OTPVerify(BaseModel):
     email: EmailStr
     otp: constr(min_length=6)
 
+
 class MessageProfile(BaseModel):
     detail: str
     status: bool
+
+
+class UsernameChange(BaseModel):
+    new_username: str

@@ -1,7 +1,9 @@
+from uuid import UUID
+
 from sqlalchemy.orm import Mapped, mapped_column
+
 from app.database.db import Base
 from app.database.models.common import UUIDMixin
-from uuid import UUID
 
 
 class User(UUIDMixin, Base):
@@ -10,7 +12,7 @@ class User(UUIDMixin, Base):
     name: Mapped[str]
     email: Mapped[str] = mapped_column(unique=True)
     username: Mapped[str] = mapped_column(unique=True)
-    password: Mapped[str]
+    password: Mapped[str] = mapped_column(nullable=True)
 
     def __repr__(self):
         return f"<User (id: {self.id})>"

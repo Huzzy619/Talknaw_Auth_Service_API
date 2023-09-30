@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Union
 
-from pydantic import AnyHttpUrl, DirectoryPath, PostgresDsn
+from pydantic import AnyHttpUrl, DirectoryPath, EmailStr, PostgresDsn
 from pydantic_settings import BaseSettings
 
 from app.utils.type_extra import SQLiteDsn
@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     social_base_url: AnyHttpUrl
     allowed_origins: list = ["*"]
     sentry_logger_url: AnyHttpUrl
+    default_from_email: EmailStr = "example@go.com"
+    email_password: str = "awesomepass"
 
 
 settings = Settings(_env_file=".env", _env_file_encoding="utf-8")

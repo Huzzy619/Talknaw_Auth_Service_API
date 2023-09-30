@@ -1,9 +1,11 @@
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, status
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import EmailStr
 
+import app.utils.helper as utils_helper
 from app.api.user.authentication import refreshJWT
 from app.api.user.otp import OTPGenerator
 from app.api.user.schemas import (
@@ -14,10 +16,11 @@ from app.api.user.schemas import (
     ResetPassword,
     User,
     User2,
+    UsernameChange,
     UserTokenProfile,
 )
 from app.api.user.services import UserService
-from app.api.user.tasks import create_profile
+from app.api.user.tasks import create_profile, send_mail, update_username_in_social
 from app.database.db import AnSession
 
 router = APIRouter(tags=["Auth-Routes"], prefix="/api/v1/accounts")
@@ -31,14 +34,43 @@ async def check_username_availability(username: str, session: AnSession):
     return await user_service.find_by_username(username=username)
 
 
-@router.get("/otp/send/{email}", response_model=MessageProfile)
-async def get_otp(email: EmailStr, session: AnSession):
-    user_service = UserService(session=session)
+@router.post("/suggest/username")
+async def get_username_suggestions(name: Annotated[str, Body(embed=True)]):
+    return utils_helper.username_suggestions(name=name)
 
+
+@router.patch("/change/username", response_model=MessageProfile)
+async def update_username(
+    user_data: UsernameChange,
+    session: AnSession,
+    user_id: UUID = Depends(auth_handler.auth_wrapper),
+):
+    user_service = UserService(session=session)
+    async for item in user_service.update_username(
+        user_id=user_id, username=user_data.new_username
+    ):
+        await update_username_in_social(
+            user_id=item["user_id"], username=item["username"]
+        )
+    return {"detail": f"Username updated to {user_data.new_username}", "status": True}
+
+
+@router.get("/otp/send/{email}", response_model=MessageProfile)
+async def get_otp(
+    email: EmailStr, session: AnSession, background_tasks: BackgroundTasks
+):
+    user_service = UserService(session=session)
     user = await user_service.find_by_email(email=email)
     otp_gen = OTPGenerator(user_id=user.id, session=session)
 
     otp = await otp_gen.get_otp()
+
+    subject = "OTP"
+    message = f"Complete your verification process with this OTP: {otp}"
+
+    background_tasks.add_task(
+        send_mail, subject=subject, message=message, recipient_list=[email]
+    )
 
     return {"detail": "OTP has been sent to your email", "status": True}
 
@@ -120,12 +152,35 @@ async def change_user_password(
 
 
 @router.get("/forgot_password/{email}", response_model=MessageProfile)
-async def verify_email(email: EmailStr, session: AnSession):
+async def verify_email(
+    email: EmailStr, session: AnSession, background_tasks: BackgroundTasks
+):
     user_service = UserService(session=session)
+    user = await user_service.find_by_email(email=email)
+    otp_gen = OTPGenerator(user_id=user.id, session=session)
+
+    otp = await otp_gen.get_otp()
+
+    subject = ("Forgot Password",)
+    message = f"""
+        You requested to reset your password.
+        Complete the process with this token: {otp}
+
+        """
+    message = f"Complete the process with this token: {otp}"
+    background_tasks.add_task(
+        send_mail, subject=subject, message=message, recipient_list=[email]
+    )
     return await user_service.forgot_password(email)
 
 
 @router.post("/reset_password/{email}", response_model=MessageProfile)
 async def reset_password(email: EmailStr, password: ResetPassword, session: AnSession):
     user_service = UserService(session=session)
+
+    user = await user_service.find_by_email(email=email)
+    otp_gen = OTPGenerator(user_id=user.id, session=session)
+    message, status = await otp_gen.check_otp(otp=password.token)
+    if not status:
+        return {"detail": message, "status": status}
     return await user_service.password_reset(email, password)
