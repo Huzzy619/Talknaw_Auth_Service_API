@@ -4,7 +4,10 @@ services:
     build: .
     ports:
       - "8001:8001"
-    command: python3 server.py
+    # command: python3 server.py
     volumes:
       - .:/app
-    
+    container_name: talknaw-auth
+    image: talknaw-auth:test
+    env_file:
+      - .env

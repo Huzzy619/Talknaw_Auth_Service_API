@@ -1,24 +1,21 @@
-FROM python:3.9.16-alpine3.16
+# 
+FROM python:3.11-slim
 
-RUN addgroup app && adduser -S -G app app
+# 
+WORKDIR /code
 
-USER app
+# 
+COPY ./requirements.txt /code/requirements.txt
 
-ENV PIP_DISABLE_PIP_VERSION_CHECK 1
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+# 
+RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 
-WORKDIR /app
+# 
+COPY . .
 
-COPY requirements.txt requirements.txt
-
-RUN pip3 install --no-cache-dir --upgrade -r requirements.txt
+RUN alembic upgrade head
 
 EXPOSE 8001
 
-COPY . .
-
-
-# CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "80"]
-
-CMD ["gunicorn", "main:app", "--workers", "4", "--worker-class", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:80"]
+# 
+CMD ["gunicorn", "main:app", "--bind", ":8001",  "--worker-class", "uvicorn.workers.UvicornWorker" ]
